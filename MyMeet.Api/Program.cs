@@ -38,7 +38,7 @@ builder.Services.AddAuthorization();
 
 // services
 builder.Services.AddScoped<IAuthService, AuthService>();
-
+builder.Services.AddScoped<IMeetingService, MeetingService>();
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
