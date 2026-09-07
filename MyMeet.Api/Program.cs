@@ -5,6 +5,8 @@ using Microsoft.IdentityModel.Tokens;
 using MyMeet.Api.Data;
 using MyMeet.Api.Services;
 using Microsoft.OpenApi;
+using MyMeet.Api.Hubs;
+using MyMeet.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,13 +34,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ValidateLifetime = true
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
+        };
     });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Dev", policy =>
+    {
+        policy.WithOrigins("http://localhost:5500", "http://127.0.0.1:5500") 
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials();
+    });
+});
 builder.Services.AddAuthorization();
 
 // services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMeetingService, MeetingService>();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IConnectionTracker, ConnectionTracker>();
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -70,8 +99,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("Dev");           // <-- add this, before auth
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
+app.MapHub<PresenceHub>("/hubs/presence");
+app.MapHub<SignalingHub>("/hubs/signaling");
 app.Run();

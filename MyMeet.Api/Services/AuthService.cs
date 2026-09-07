@@ -35,8 +35,9 @@ public class AuthService : IAuthService
         {
             payload = await GoogleJsonWebSignature.ValidateAsync(googleIdToken, new GoogleJsonWebSignature.ValidationSettings
             {
-                Audience = new[] { clientId }
-            });
+                Audience = new[] { clientId },
+
+            });            
         }
         catch (InvalidJwtException ex)
         {
